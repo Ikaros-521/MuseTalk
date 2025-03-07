@@ -243,6 +243,15 @@ export FFMPEG_PATH=/musetalk/ffmpeg-4.4-amd64-static
 ```
 ## 快速开始
 
+### webui
+终端运行 `python app.py`  
+webui链接：[http://localhost:7860/](http://localhost:7860/)  
+
+### API
+终端运行 `python api.py`  
+并发数、端口等在`api.py`中配置。  
+API文档：[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
+
 ### 推理
 这里，我们提供推理脚本。 
 ```
