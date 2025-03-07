@@ -8,3 +8,8 @@ models
 results/
 data/audio/*.wav
 data/video/*.mp4
+
+Miniconda3/
+ffmpeg/
+hf_download/
+temp/

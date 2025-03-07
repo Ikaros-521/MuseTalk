@@ -422,5 +422,5 @@ port_number = 7860  # Replace with your desired port number
 
 
 demo.queue().launch(
-    share=False , debug=True, server_name=ip_address, server_port=port_number
+    share=False , debug=True, server_name=ip_address, server_port=port_number, inbrowser=True
 )

@@ -11,11 +11,17 @@ soundfile==0.12.1
 transformers==4.39.2
 
 gdown
-requests
+requests~=2.32.3
 imageio[ffmpeg]
 
 omegaconf
 ffmpeg-python
-gradio
 spaces
-moviepy
+moviepy==1.0.3
+
+huggingface-hub==0.22.2
+gradio==4.44.1
+
+pydantic==2.7.1
+
+loguru~=0.7.3
