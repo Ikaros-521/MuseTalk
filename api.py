@@ -133,6 +133,7 @@ class TaskManager:
         self.lock = asyncio.Lock()
         self.processes: Dict[str, multiprocessing.Process] = {}
         self.queue_check_event = asyncio.Event()
+        self.processing_tasks = set()  # 新增：跟踪正在处理的任务
     
     def create_task(self) -> str:
         task_id = str(uuid.uuid4())
@@ -262,6 +263,7 @@ class TaskManager:
     async def _process_task(self, task_id: str, audio_path: str, video_path: str, bbox_shift: float):
         """处理单个任务"""
         task = self.tasks[task_id]
+        self.processing_tasks.add(task_id)  # 添加到正在处理集合
         try:
             logger.info(f"开始处理任务 {task_id}")
             # 创建新进程运行任务
@@ -298,7 +300,7 @@ class TaskManager:
                         "video_path": result["output_path"],
                         "bbox_shift_text": result["bbox_shift_text"]
                     }
-                    logger.info(f"任务 {task_id} 完成")
+                    # logger.info(f"任务 {task_id} 完成")
                 else:
                     task.status = TaskStatus.FAILED
                     task.error_message = result.get("error", "未知错误")
@@ -326,8 +328,10 @@ class TaskManager:
             task.end_time = datetime.now().isoformat()
             
             async with self.lock:
-                self.current_processing -= 1
-                logger.info(f"任务 {task_id} 处理完成，当前处理数: {self.current_processing}")
+                if task_id in self.processing_tasks:  # 只有当任务仍在处理集合中时才减少计数
+                    self.current_processing -= 1
+                    self.processing_tasks.remove(task_id)
+                    logger.info(f"任务 {task_id} 处理完成，当前处理数: {self.current_processing}")
                 # 触发队列检查
                 logger.info("正在触发队列检查事件...")
                 self.queue_check_event.set()
@@ -400,12 +404,11 @@ class TaskManager:
     
     async def delete_task(self, task_id: str) -> bool:
         """跨平台删除任务及其所有资源"""
-        # 先停止任务
-        await self.stop_task(task_id)
-        
-        # 删除所有相关文件和记录
         try:
-            # 删除临时文件和结果文件
+            # 先停止任务
+            await self.stop_task(task_id)
+            
+            # 删除所有相关文件和记录
             for dir_path in ["temp", "results/output", "results/input"]:
                 task_dir = os.path.join(dir_path, task_id)
                 if os.path.exists(task_dir):
@@ -414,18 +417,23 @@ class TaskManager:
                     except:
                         pass
                     
-            # 清理任务记录
-            if task_id in self.tasks:
-                del self.tasks[task_id]
-            if task_id in self.task_queue:
-                self.task_queue.remove(task_id)
-            if task_id in self.processes:
-                del self.processes[task_id]
-                
+            async with self.lock:
+                # 清理任务记录
+                if task_id in self.tasks:
+                    del self.tasks[task_id]
+                if task_id in self.task_queue:
+                    self.task_queue.remove(task_id)
+                if task_id in self.processes:
+                    del self.processes[task_id]
+                if task_id in self.processing_tasks:  # 如果任务正在处理中，更新计数
+                    self.processing_tasks.remove(task_id)
+                    self.current_processing = max(0, self.current_processing - 1)  # 确保不会小于0
+                    
+            return True
+            
         except Exception as e:
             logger.error(f"清理任务{task_id}资源时出错: {str(e)}")
-            
-        return True
+            return False
 
 # 创建任务管理器实例
 task_manager = TaskManager()
